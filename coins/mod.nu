@@ -31,24 +31,29 @@ export def historicalPrices [timestamp: int, ...coins: string] {
 # TODO: fix this. 
 # batchHistorical
 export def batchHistorical [
-    coins: record<string: list<int>>, # mapping: { "coingecko:ethereum": [1666869543, 1666862343], ... }
-    searchWidth?: string # optional, e.g. "4h", "600"
+    coins,  # Accept any value
+    searchWidth?: string
 ] {
+    # Validate that coins is a record
+    if (not ($coins | describe | str contains "record")) {
+        error make { msg: "Expected coins to be a record" }
+    }
+    
     if ($coins | is-empty) {
         noCoinError
         return
     }
+    
     let coins_json = $coins | to json
     let coins_encoded = $coins_json | url encode
-    let url = $"https://coins.llama.fi/batchHistorical?coins=($coins_encoded)"
-    if ($searchWidth != null) {
-        let url = $"($url)&searchWidth=($searchWidth)"
-    }
+    let base_url = $"https://coins.llama.fi/batchHistorical?coins=($coins_encoded)"
+    let url = if ($searchWidth != null) { $"($base_url)&searchWidth=($searchWidth)" } else { $base_url }
+
     http get $url
 }
 # chart
 
-#Strings accepted by period and searchWidth: Can use regular chart candle notion like ‘4h’ etc where: W = week, D = day, H = hour, M = minute (not case sensitive)
+#Strings accepted by period and searchWidth: Can use regular chart candle notion like '4h' etc where: W = week, D = day, H = hour, M = minute (not case sensitive)
 export def chart [...coins: string, start: int, end: int=0, searchWidth?: string='', span: int=10,  period?: string] {
     if ($coins | is-empty) {
         noCoinError
@@ -76,6 +81,6 @@ def noCoinError [] {
     error make { msg: "At least one coin argument is required." }
 }
 # Format coins for the API: prepend 'coingecko:' and join with commas
-def formatCoins [coins: list<string>] {
+export def formatCoins [coins: list<string>] {
     $coins | each { |coin| $"coingecko:($coin)" } | str join ","
 }
